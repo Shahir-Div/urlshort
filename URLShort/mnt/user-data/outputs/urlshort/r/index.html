@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Redirecting… · Sniplink</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,sans-serif;background:#070711;color:#f1f0ff;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:1rem}
+  .logo{font-size:1.1rem;font-weight:700;color:#818cf8;margin-bottom:0.5rem}
+  .spin{width:36px;height:36px;border:3px solid rgba(99,102,241,0.2);border-top-color:#6366f1;border-radius:50%;animation:r .7s linear infinite}
+  @keyframes r{to{transform:rotate(360deg)}}
+  p{color:#6b7280;font-size:0.9rem}
+  a{color:#818cf8}
+  .err{display:none;text-align:center}
+  .err h2{margin-bottom:0.5rem}
+</style>
+</head>
+<body>
+  <div class="logo">⚡ Sniplink</div>
+  <div class="spin" id="spinner"></div>
+  <p id="msg">Redirecting you now…</p>
+  <div class="err" id="errBox">
+    <h2>Link not found</h2>
+    <p>This short link doesn't exist or may have been deleted.</p>
+    <p style="margin-top:0.75rem"><a href="/">← Create your own short link</a></p>
+  </div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, getDocs, doc, updateDoc, increment, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCtyutRV734MLmGDLAbczUenffUKP8qvmo",
+  authDomain: "urlshort-446b8.firebaseapp.com",
+  projectId: "urlshort-446b8",
+  storageBucket: "urlshort-446b8.firebasestorage.app",
+  messagingSenderId: "34434679173",
+  appId: "1:34434679173:web:32fcc6b9d339030b87c4ec"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+function showError(){
+  document.getElementById('spinner').style.display='none';
+  document.getElementById('msg').style.display='none';
+  document.getElementById('errBox').style.display='block';
+}
+
+// Extract code from path: /r/CODE
+const parts = window.location.pathname.split('/').filter(Boolean);
+const code  = parts[parts.length - 1];
+
+if(!code || code === 'r'){
+  window.location.href = '/';
+} else {
+  try {
+    const q    = query(collection(db,"links"), where("shortCode","==",code));
+    const snap = await getDocs(q);
+
+    if(snap.empty){
+      showError();
+    } else {
+      const docRef = snap.docs[0].ref;
+      const data   = snap.docs[0].data();
+
+      // Update total clicks + clicks by date (for Pro analytics)
+      const today = new Date().toISOString().slice(0,10);
+      await updateDoc(docRef, {
+        clicks: increment(1),
+        [`clickDates.${today}`]: increment(1)
+      });
+
+      // Redirect
+      window.location.replace(data.originalUrl);
+    }
+  } catch(e) {
+    console.error(e);
+    showError();
+  }
+}
+</script>
+</body>
+</html>
